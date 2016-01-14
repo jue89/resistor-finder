@@ -102,8 +102,16 @@ for( let x = 0; x < series.length; x++ ) {
 let result = rows[ bestRow ];
 
 
+let unit = [ '', 'k', 'M', 'G', 'T' ];
+let valueBunit = 0;
+while( result.valueB > 1000 && valueBunit < unit.length - 1 ) {
+	valueBunit++;
+	result.valueB /= 1000;
+}
+
+
 // Output information
 console.log( "Found ratio:    " + result.ratio );
 console.log( "Error^2:        " + result.err );
 console.log( "R_a:            " + result.valueA + " Ohm" );
-console.log( "R_b:            " + result.valueB + " Ohm" );
+console.log( "R_b:            " + result.valueB + " " + unit[ valueBunit ] + "Ohm" );
