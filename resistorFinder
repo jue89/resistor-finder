@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+"use strict";
 
 if( process.argv.length < 5 ) {
 	console.log( "Usage: resistorFinder [a] [b] [e]\nFinds two resitors with best matching ratio a/b in series e" );
@@ -6,9 +7,9 @@ if( process.argv.length < 5 ) {
 }
 
 // Read arguments
-var a = parseInt( process.argv[2] );
-var b = parseInt( process.argv[3] );
-var e = parseInt( process.argv[4] );
+let a = parseInt( process.argv[2] );
+let b = parseInt( process.argv[3] );
+let e = parseInt( process.argv[4] );
 
 // Make some hints, if series is not defined in DIN IEC 60063
 if( e != 3 && e != 6 && e != 12 &&
@@ -17,14 +18,20 @@ if( e != 3 && e != 6 && e != 12 &&
 	process.exit(1);
 }
 
+// Ratio must be less than 1
+if( a >= b ) {
+	console.log( "The ratio must be less than 1!" );
+	process.exit(1);
+}
+
 // Create series
-var series = [];
-var base = Math.pow( 10, 1/e )
-var factor = (e >= 48) ? 100 : 10;
-for( var m = 0; m < e; m++ ) {
+let series = [];
+let base = Math.pow( 10, 1/e )
+let factor = (e >= 48) ? 100 : 10;
+for( let m = 0; m < e; m++ ) {
 
 	// Calculate resistor value
-	var value = Math.round( Math.pow( base, m ) * factor );
+	let value = Math.round( Math.pow( base, m ) * factor );
 
 	// Some exceptions ...
 	if( e <= 24 ) switch( value ) {
@@ -42,26 +49,61 @@ for( var m = 0; m < e; m++ ) {
 }
 console.log( "E" + e + " Series: " + series.join(", ") );
 
-
-var ratio = a / b;
+// Get required ratio
+let ratio = a / b;
 console.log( "Required ratio: " + a + "/" + b + " = " + ratio );
 
+// Go through all possible rows and find the best ratio
+let rows = [];
+for( let x = 0; x < series.length; x++ ) {
 
-var best_err = 10, best_x = 0, best_y = 0;
-for( var x = 0; x < series.length; x++ ) {
-	for( var y = 0; y < series.length; y++ ) {
-		// Squarred error
-		var err = Math.pow( series[x] / series[y] - ratio, 2 );
+	let y = x;
+	let lastErr, lastValue;
+	let err = 1;
+	let mult = 1;
+	let value;
 
-		if( err < best_err ) {
-			best_err = err;
-			best_x = x;
-			best_y = y;
+	do {
+
+		// Store last result. It might be a good choice!
+		lastErr = err;
+		lastValue = value;
+
+		// Calculate new result
+		value = mult * series[ y ];
+		let test = series[ x ] / value;
+		err = Math.pow( test - ratio, 2 );
+		if( ++y == series.length ) {
+			y = 0;
+			mult *= 10;
 		}
-	}
+
+	} while( lastErr > err );
+
+	// Store the last result. It was the best one in the current row
+	rows[x] = {
+		err: lastErr,
+		valueA: series[ x ],
+		valueB: lastValue,
+		ratio: series[ x ] / lastValue
+	};
+
 }
 
-console.log( "Found ratio:    " + series[best_x] / series[best_y] );
-console.log( "Error^2:        " + best_err );
-console.log( "R_a:            " + series[best_x] + " Ohm" );
-console.log( "R_b:            " + series[best_y] + " Ohm" );
+// Find best row
+let bestRow = 0;
+let bestRowErr = 1;
+for( let x = 0; x < series.length; x++ ) {
+	if( rows[x].err < bestRowErr ) {
+		bestRowErr = rows[x].err;
+		bestRow = x;
+	}
+}
+let result = rows[ bestRow ];
+
+
+// Output information
+console.log( "Found ratio:    " + result.ratio );
+console.log( "Error^2:        " + result.err );
+console.log( "R_a:            " + result.valueA + " Ohm" );
+console.log( "R_b:            " + result.valueB + " Ohm" );
